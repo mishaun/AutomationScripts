@@ -13,6 +13,7 @@ import os
 state = "New Mexico"
 date = "February 6, 2020"
 
+
 #Navigate to energynet/govt sale and get sale page
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -22,7 +23,12 @@ url = 'https://www.energynet.com/page/Government_Sales_Results'
 
 filepath = abspath = os.path.dirname(__file__)
 
-driver = webdriver.Chrome(filepath + "/chromedriver")
+#driver will be used based on operating system - windows or mac
+try:
+    driver = webdriver.Chrome(filepath + "/chromedriver.exe")
+except:
+    driver = webdriver.Chrome(filepath + "/chromedriver")
+
 driver.implicitly_wait(30)
 driver.get(url)
 
