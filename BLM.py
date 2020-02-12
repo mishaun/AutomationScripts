@@ -5,14 +5,13 @@ Created on Sun Feb  9 20:57:29 2020
 
 @author: Mishaun_Bhakta
 """
-
-import pandas as pd
 import os
 import re
 
 #sale parameters
 state = "New Mexico"
-date = "February 6, 2020"
+stinitials = "NM"
+date = "Feb 6, 2020"
 bidder = '3'
 
 
@@ -57,26 +56,65 @@ def webscrape_presale(parsepage):
         #getting acres by splitting at : and blankspace to get string of numerical value - taking out a comma if above 1000 in order to convert to float
         acres.append(float(re.split(":\W",item.contents[2])[1].replace(',','')))
 
-    return acres, desc, county
+    return acres, desc, county, serialnums
+
+acres, descriptions, counties, serials = webscrape_presale(salehtml)
+
+#Open sale template and update insert information from webscrape
+import openpyxl
 
 
-acres, descriptions, counties = webscrape_presale(salehtml)
-
-#open workbook and store serial numbers
-df = pd.read_excel('BLM NM 2-6-20 Sale Notes.xlsm', header = 6, usecols = "B:T")
-serials = df["Serial numbers"].iloc[0:-1]
-
-
-def scrape_lotswon(parsepage, bidderNum):
+def fillexcel():
+    '''
+    This function will take scraped (global) values for lots and insert into sale spreadsheet
+    '''
     
-    bidstatus = parsepage.find_all("td", "lot-bid")
-    ##need to finish function####
-    return bidstatus
+    wb = openpyxl.load_workbook("BLM Sale Notes Template.xlsm", keep_vba = True)
+    sheet = wb.active
+    
+    sheet["B6"] = "BLM {} {} Sale Notes".format(stinitials, date)
+    #inserting values from webscrape into spreadsheet
+    for i in range(0,len(serials)):
+        sheet.cell(row = 8+i, column = 2, value = serials[i])
+        sheet.cell(row = 8+i, column = 6, value = acres[i])
+        sheet.cell(row = 8+i, column = 7, value = counties[i])
+        sheet.cell(row = 8+i, column = 8, value = descriptions[i])
+    
+    wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
+    wb.close()
 
-bidderinfo = scrape_lotswon(salehtml, bidder)
+    
+bidtags = salehtml.find_all("td", "lot-bid")
+ourwinnings = {}
 
+for i in range (0,len(bidtags)):
+    textCont = bidtags[i].text
+    
+    #extracting bidder number from lot bid tags - try statement prevents break if no bids were received
+    try:
+        winBidder = re.findall('#\d+', textCont)[0].replace("#",'')
+    except:
+        print("no bids received for parcel: " + serials[i])
+        winBidder = type(None)
+        pass
+    
+    #if we won the bid, then capture the winning bid amount
+    if bidder == winBidder:
+        winAmount = re.findall('\$\d+', textCont)[0]
+        winAmount = winAmount.replace('$','')
+    
+        ourwinnings[i] = winAmount
 
+#### insert our winnings into sale spreadsheet
+wb = openpyxl.load_workbook("BLM {} {} Sale Notes.xlsm".format(stinitials, date), keep_vba = True)
+sheet = wb.active
 
+for i in range(0,len(ourwinnings)):
+    sheet.cell(row = 8 + list(ourwinnings.keys())[i], column = 17, value = ourwinnings[list(ourwinnings.keys())[i]])
+    sheet.cell(row = 8 + list(ourwinnings.keys())[i], column = 16, value = 'Y')
+
+wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
+wb.close()
 
 #use pdf reader to fill in form
 # conda install -c conda-forge pdfrw
