@@ -8,10 +8,12 @@ Created on Sun Feb  9 20:57:29 2020
 
 import pandas as pd
 import os
+import re
 
 #sale parameters
 state = "New Mexico"
 date = "February 6, 2020"
+bidder = '3'
 
 
 #Navigate to energynet/govt sale and get sale page
@@ -33,15 +35,51 @@ driver.implicitly_wait(30)
 driver.get(url)
 
 link = driver.find_element_by_xpath('//*[@id="main_page"]/div/div[2]/div/div/div[1]/div[2]/a').click()
+salehtml = BeautifulSoup(driver.page_source, "html.parser")
+
+def webscrape_presale(parsepage):
+    '''This function will take a page and scrape its data for sale lot information
+    '''
+    #webscrape sale page
+    
+    serialnums = parsepage.find_all("span", "lot-name")
+    serialnums = [i.text for i in serialnums]
+    
+    legalinfo = parsepage.find_all("td", "lot-legal")
+    
+    acres = []
+    desc = []
+    county = []
+    
+    for item in legalinfo:
+        county.append(item.contents[0].text)
+        desc.append(item.contents[1].text)
+        #getting acres by splitting at : and blankspace to get string of numerical value - taking out a comma if above 1000 in order to convert to float
+        acres.append(float(re.split(":\W",item.contents[2])[1].replace(',','')))
+
+    return acres, desc, county
+
+
+acres, descriptions, counties = webscrape_presale(salehtml)
 
 #open workbook and store serial numbers
-
 df = pd.read_excel('BLM NM 2-6-20 Sale Notes.xlsm', header = 6, usecols = "B:T")
 serials = df["Serial numbers"].iloc[0:-1]
 
+
+def scrape_lotswon(parsepage, bidderNum):
+    
+    bidstatus = parsepage.find_all("td", "lot-bid")
+    ##need to finish function####
+    return bidstatus
+
+bidderinfo = scrape_lotswon(salehtml, bidder)
+
+
+
+
 #use pdf reader to fill in form
 # conda install -c conda-forge pdfrw
-
 import pdfrw
 
 fields = {
