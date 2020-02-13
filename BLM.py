@@ -83,6 +83,7 @@ def fillexcel():
     wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
     wb.close()
 
+fillexcel()
     
 bidtags = salehtml.find_all("td", "lot-bid")
 ourwinnings = {}
@@ -110,27 +111,46 @@ wb = openpyxl.load_workbook("BLM {} {} Sale Notes.xlsm".format(stinitials, date)
 sheet = wb.active
 
 for i in range(0,len(ourwinnings)):
+    #row 8 is the starting row for parcels in teh spreadsheet, inserting data relative to 8th row by adding parcel number of sale
     sheet.cell(row = 8 + list(ourwinnings.keys())[i], column = 17, value = ourwinnings[list(ourwinnings.keys())[i]])
     sheet.cell(row = 8 + list(ourwinnings.keys())[i], column = 16, value = 'Y')
 
 wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
 wb.close()
 
+#create dataframe for completed sale sheet
+import pandas as pd
+import xlwings as xw
+
+##STOPPIONG POINT - NEED TO CONVERT sheet from xlwings to dataframe
+data_onlyWB = xw.Book("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
+dataSheet = data_onlyWB.sheets["Sale Notes"]
+#having to read from excel sheet using xlwings becasue pandas and openpyxl cannot read values in spreadsheets produced from formulas
+df = pd.DataFrame(dataSheet.values)
+
+
+#slicing the dataframe to get only relevant data
+df = df.iloc[6:,1:25]
+#setting columns to first row of dataframe
+df.columns = df.iloc[0]
+#dropping the repeated row with column names
+df = df.drop(index =[6])
+
+#filtering data frame with values only won by magnum
+wonlotsdf = df[df["Magnum Won (Y/N)"] == 'Y']
+
 #use pdf reader to fill in form
 # conda install -c conda-forge pdfrw
 import pdfrw
 
-INVOICE_TEMPLATE_PATH = 'bidsheet template.pdf'
-INVOICE_OUTPUT_PATH = '/Bid Sheets/bidsheet.pdf'
-
-
+#copied code and function from article: https://bostata.com/how-to-populate-fillable-pdfs-with-python/
+##############################################################################
 ANNOT_KEY = '/Annots'
 ANNOT_FIELD_KEY = '/T'
 ANNOT_VAL_KEY = '/V'
 ANNOT_RECT_KEY = '/Rect'
 SUBTYPE_KEY = '/Subtype'
 WIDGET_SUBTYPE_KEY = '/Widget'
-
 
 def write_fillable_pdf(input_pdf_path, output_pdf_path, data_dict):
     template_pdf = pdfrw.PdfReader(input_pdf_path)
@@ -144,18 +164,26 @@ def write_fillable_pdf(input_pdf_path, output_pdf_path, data_dict):
                         pdfrw.PdfDict(V='{}'.format(data_dict[key]))
                     )
     pdfrw.PdfWriter().write(output_pdf_path, template_pdf)
+##############################################################
 
+templatePDF = 'bidsheet template.pdf'
 
-fields = {
-        "State": stinitials,
-        "Date of Sale": date,
-        'Check Box for Oil and Gas' : "x",
-        "Oil and Gas/Parcel No" : "",
-        "TOTAL BID FOR Oil and Gas Lease" : "",
-        "PAYMENT SUBMITTED WITH BID for Oil and Gas" : "",
-        "Print or Type Name of Lessee" : "R&R Royalty, LTD",
-        "Address of Lessee": "500 N Shoreline Blvd, Ste 322",
-        "City" : "Corpus Christi",
-        "State_2": "TX",
-        "Zip Code" : "78401"
-        }
+for i in range(0,len(wonlotsdf.index)):
+
+    OutputPath = filepath +"/Bid Sheets/" + wonlotsdf.iloc[i]["Serial numbers"] + " Bid Sheet.pdf"
+    
+    fields = {
+            "State": stinitials,
+            "Date of Sale": date,
+            'Check Box for Oil and Gas' : "x",
+            "Oil and Gas/Parcel No" : wonlotsdf.iloc[i]["Serial numbers"],
+            "TOTAL BID FOR Oil and Gas Lease" : wonlotsdf.iloc[i]["Total Bid (Number on BLM Bid Sheet)"],
+            "PAYMENT SUBMITTED WITH BID for Oil and Gas" : wonlotsdf.iloc[i]["Min Due"],
+            "Print or Type Name of Lessee" : "R&R Royalty, LTD",
+            "Address of Lessee": "500 N Shoreline Blvd, Ste 322",
+            "City" : "Corpus Christi",
+            "State_2": "TX",
+            "Zip Code" : "78401"
+            }
+    
+    write_fillable_pdf(templatePDF, OutputPath, fields)
