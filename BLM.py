@@ -77,7 +77,6 @@ bidderinfo = scrape_lotswon(salehtml, bidder)
 
 
 
-
 #use pdf reader to fill in form
 # conda install -c conda-forge pdfrw
 import pdfrw
