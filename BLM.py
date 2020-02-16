@@ -5,8 +5,7 @@ Created on Sun Feb  9 20:57:29 2020
 
 @author: Mishaun_Bhakta
 """
-import os
-import re
+import os, re, shutil
 
 #sale parameters
 state = "New Mexico"
@@ -20,9 +19,9 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
-url = 'https://www.energynet.com/page/Government_Sales_Results'
+url = 'https://www.energynet.com/govt_listing.pl?sg=5196'
 
-filepath = abspath = os.path.dirname(__file__)
+filepath = os.path.dirname(__file__)
 
 #driver will be used based on operating system - windows or mac
 try:
@@ -33,14 +32,16 @@ except:
 driver.implicitly_wait(30)
 driver.get(url)
 
-link = driver.find_element_by_xpath('//*[@id="main_page"]/div/div[2]/div/div/div[1]/div[2]/a').click()
+#download shapefile and sale notice
+
+
 salehtml = BeautifulSoup(driver.page_source, "html.parser")
 
 def webscrape_presale(parsepage):
     '''This function will take a page and scrape its data for sale lot information
     '''
+
     #webscrape sale page
-    
     serialnums = parsepage.find_all("span", "lot-name")
     serialnums = [i.text for i in serialnums]
     
@@ -66,8 +67,9 @@ import openpyxl
 
 def fillexcel():
     '''
-    This function will take scraped (global) values for lots and insert into sale spreadsheet
-    '''
+    This function will take scraped (global) values for lots and insert into sale spreadsheet and also download sale shapefile and move it to directory of this script file
+    '''    
+    
     wb = openpyxl.load_workbook("BLM Sale Notes Template.xlsm", keep_vba = True)
     sheet = wb.active
     
@@ -81,6 +83,27 @@ def fillexcel():
     
     wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
     wb.close()
+    
+    #clicking link of where shapefile is stored on sale page    
+    driver.find_element_by_link_text("GIS Data WGS84").click()
+    driver.find_element_by_link_text("Notice of Competitive Oil and Gas Internet-Based Lease Sale").click()
+    
+    #getting list of filenames in downloads
+    downloads = os.listdir("/Users/Mishaun_Bhakta/Downloads/")
+    
+    #pattern will find downloaded file name of shapefile
+    pattern = "BLM"+ stinitials + "\S*.zip"
+    
+    #searching through filenames in downlaods folder
+    finds = []
+    for file in downloads:
+        if re.findall(pattern, file):
+            finds.append(file)
+            break
+        
+    #moving file from downloads folder to directory of this script file - then renaming it to a cleaner name
+    shutil.copy("/Users/Mishaun_Bhakta/Downloads/" + finds[0], filepath)
+    os.rename(finds[0], "BLM " + stinitials + " " + date + " Shapefile." + finds[0].split(".")[1])
 
 #checking to see whether or not excel file already exists - if it does it'll prevent overwriting of changes
 if os.path.exists(filepath+ "/" + "BLM {} {} Sale Notes.xlsm".format(stinitials, date)):
