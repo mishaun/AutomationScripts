@@ -13,7 +13,6 @@ stinitials = "NM"
 date = "Feb 6, 2020"
 bidder = '3'
 
-
 #Navigate to energynet/govt sale and get sale page
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -32,9 +31,7 @@ except:
 driver.implicitly_wait(30)
 driver.get(url)
 
-#download shapefile and sale notice
-
-
+#storing html content in variable after reaching target sale page
 salehtml = BeautifulSoup(driver.page_source, "html.parser")
 
 def webscrape_presale(parsepage):
@@ -45,8 +42,10 @@ def webscrape_presale(parsepage):
     serialnums = parsepage.find_all("span", "lot-name")
     serialnums = [i.text for i in serialnums]
     
+    #storing all data from tag 'td's with clas name "lot-legal
     legalinfo = parsepage.find_all("td", "lot-legal")
     
+    #initializing empty arrays
     acres = []
     desc = []
     county = []
@@ -64,12 +63,13 @@ acres, descriptions, counties, serials = webscrape_presale(salehtml)
 #Open sale template and update insert information from webscrape
 import openpyxl
 
-
 def fillexcel():
     '''
     This function will take scraped (global) values for lots and insert into sale spreadsheet and also download sale shapefile and move it to directory of this script file
     '''    
     
+    #opening template sale notebook for modifications
+    #preserving vba to keep formatting of workbook preserved - also keeping formulas 
     wb = openpyxl.load_workbook("BLM Sale Notes Template.xlsm", keep_vba = True)
     sheet = wb.active
     
@@ -89,8 +89,13 @@ def fillexcel():
     driver.find_element_by_link_text("Notice of Competitive Oil and Gas Internet-Based Lease Sale").click()
     
     #getting list of filenames in downloads
-    downloads = os.listdir("/Users/Mishaun_Bhakta/Downloads/")
-    
+    try:
+        downloaddir = "/Users/Mishaun_Bhakta/Downloads/"
+        downloads = os.listdir(downloaddir)
+    except:
+        downloaddir = "C:/Users/mishaun/Downloads/"
+        downloads = os.listdir(downloaddir) 
+        
     #pattern will find downloaded file name of shapefile
     pattern = "BLM"+ stinitials + "\S*.zip"
     
@@ -102,7 +107,7 @@ def fillexcel():
             break
         
     #moving file from downloads folder to directory of this script file - then renaming it to a cleaner name
-    shutil.copy("/Users/Mishaun_Bhakta/Downloads/" + finds[0], filepath)
+    shutil.copy(downloaddir + finds[0], filepath)
     os.rename(finds[0], "BLM " + stinitials + " " + date + " Shapefile." + finds[0].split(".")[1])
 
 #checking to see whether or not excel file already exists - if it does it'll prevent overwriting of changes
