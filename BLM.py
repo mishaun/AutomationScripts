@@ -139,15 +139,19 @@ def fillexcel():
         sheet.cell(row = 8+i, column = 7, value = counties[i])
         sheet.cell(row = 8+i, column = 8, value = descriptions[i])
     
-    wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
-    wb.close()
+    #checking to see whether or not excel file already exists - if it does it'll prevent overwriting of changes
+    if os.path.exists(filepath+ "/" + "BLM {} {} Sale Notes.xlsm".format(stinitials, date)):
+        print("File already exists - Preventing overwrite of changes in excel file")
+    else:
+        wb.save("BLM {} {} Sale Notes.xlsm".format(stinitials, date))
+        wb.close()
 
 #checking to see whether or not excel file already exists - if it does it'll prevent overwriting of changes
 if os.path.exists(filepath+ "/" + "BLM {} {} Sale Notes.xlsm".format(stinitials, date)):
     print("File already exists - Preventing overwrite of changes in excel file")
 else:
     fillexcel()
-    
+
 bidtags = salehtml.find_all("td", "lot-bid")
 ourwinnings = {}
 
