@@ -279,7 +279,7 @@ def openDI():
     '''This function will open up DrillingInfo and log user in
     '''
     
-    driver = webdriver.Chrome(filepath + "/chromedriver.exe")
+    driver = webdriver.Chrome(filepath + "/chromedriver")
     wait = WebDriverWait(driver, 20)
         
     driver.get("https://app.drillinginfo.com/gallery/")
