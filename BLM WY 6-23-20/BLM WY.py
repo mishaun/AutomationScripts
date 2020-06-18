@@ -304,6 +304,8 @@ def openDI():
     
 #splitting counties in counties variable at the comma+space to formulate string 
 #for drilling info paste and filter
+
+import pandas as pd
     
 splitCounties = [item.split(", ") for item in counties]
 
@@ -313,8 +315,10 @@ for item in splitCounties:
     temp = item[0].upper().replace("COUNTY", "")
     formattedCounty = temp + "(" + item[1] + ")"
     DIcounties.append(formattedCounty)
-
-
-
+    
+#overwriting counties list and putting into a ddatframe to remove duplicates
+dfCounties = pd.DataFrame()
+dfCounties["Counties"] = DIcounties
+dfCounties.drop_duplicates(inplace = True)
         
     
