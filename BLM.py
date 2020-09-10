@@ -22,14 +22,15 @@ passed into a pdf fill form function to create paperwork needed to send to
 Bureau of Land Management
 
 """
-import os, re, shutil
+import os, re, shutil, time
 
 #sale parameters
-state = "New Mexico"
-stinitials = "NM"
-date = "Feb 6, 2020"
+state = "Montana"
+stinitials = "MT"
+date = "Sep 22, 2020"
 bidder = '3'
-url = 'https://www.energynet.com/govt_listing.pl?sg=5196'
+url = 'https://www.energynet.com/govt_listing.pl?sg=5314'
+bidDuration = 1 #amount of hours the parcel is open for bidding
 
 #Navigate to energynet/govt sale and get sale page
 from selenium import webdriver
@@ -52,6 +53,14 @@ except:
 driver.implicitly_wait(30)
 driver.get(url)
 
+#finding the show dropdown menu
+showButton = driver.find_elements_by_css_selector('#DataTables_Table_0_length > label > select')[0]
+                                                   
+#sending keys to select all lots
+showButton.send_keys("All")
+showButton.send_keys(Keys.RETURN)
+                                                 
+
 #storing html content in variable after reaching target sale page
 salehtml = BeautifulSoup(driver.page_source, "html.parser")
 
@@ -69,6 +78,22 @@ def webscrape_presale(parsepage):
     #this html container/tag has 3 pieces of information
     legalinfo = parsepage.find_all("td", "lot-legal")
     
+    lotclosings = parsepage.find_all("td", "lot-closing")
+    
+    
+    closingInfo = []
+    for item in lotclosings:
+        #finding date from lot closing element
+        closingDate = re.search("\d+/\d+/\d+", item.text)[0]
+        
+        #finding opening time from lot closing element - then calculate closing time
+        openingTime = re.search("\d+:\d+", item.text)[0]
+        #calculating closing time 
+        closingTime = str(int(openingTime.split(":")[0]) + bidDuration)+":" + openingTime.split(":")[1]
+        
+        dateAndTime = closingDate + " " + closingTime
+        closingInfo.append(dateAndTime)
+    
     #initializing empty arrays
     acres = []
     desc = []
@@ -78,13 +103,16 @@ def webscrape_presale(parsepage):
         county.append(item.contents[0].text)
         desc.append(item.contents[1].text)
         #getting acres by splitting at : and blankspace to get string of numerical value - taking out a comma if above 1000 in order to convert to float
-        acres.append(float(re.split(":\W",item.contents[2])[1].replace(',','')))
+        acres.append(float(re.split(":\W",item.contents[2].text)[1].replace(',','')))
 
     ##getting shapefile from webpage  
     #clicking link of where shapefile is stored on sale page    
     driver.find_element_by_link_text("GIS Data WGS84").click()
-    driver.find_element_by_link_text("Notice of Competitive Oil and Gas Internet-Based Lease Sale").click()
-    
+    time.sleep(2)
+    try:
+        driver.find_element_by_link_text("Notice of Competitive Oil and Gas Internet-Based Lease Sale").click()
+    except:
+        print("Sale notice pdf was unable to be clicked")
     #getting list of filenames in downloads
     try:
         downloaddir = "/Users/Mishaun_Bhakta/Downloads/"
@@ -111,10 +139,10 @@ def webscrape_presale(parsepage):
     except:
        pass
    
-    return acres, desc, county, serialnums
+    return acres, desc, county, serialnums, closingInfo
 
 #storing global variables of web scrape information
-acres, descriptions, counties, serials = webscrape_presale(salehtml)
+acres, descriptions, counties, serials, closing = webscrape_presale(salehtml)
 
 #Open sale template and update insert information from webscrape
 import openpyxl
@@ -135,6 +163,7 @@ def fillexcel():
     #inserting values from webscrape into spreadsheet -8th row is where data rows begin
     for i in range(0,len(serials)):
         sheet.cell(row = 8+i, column = 2, value = serials[i])
+        sheet.cell(row = 8+i, column = 5, value = closing[i])
         sheet.cell(row = 8+i, column = 6, value = acres[i])
         sheet.cell(row = 8+i, column = 7, value = counties[i])
         sheet.cell(row = 8+i, column = 8, value = descriptions[i])
